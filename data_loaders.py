@@ -61,7 +61,8 @@ class MyDataLoader(DataLoader):
             for f in tqdm(fs, desc='Reading data from ' + path):
                 image = Image.open(os.path.join(root, f))
                 images.append(np.array(image))
-        labels = np.load(os.path.join(path, 'labels.npy'))
+        labels = np.load(os.path.join(path, 'labels.npy'))  # one-hot
+        labels = np.argmax(labels, 1)  # ids
         return list(zip(images, labels))
 
     """    
@@ -74,6 +75,29 @@ class MyDataLoader(DataLoader):
             return res
             """
 
+
+
+class MyDataLoader(DataLoader):
+    def _read_data_train(self, path):
+        return self._read_MNIST_data(path)
+
+    def _read_data_dev(self, path):
+        return self._read_MNIST_data(path)
+
+    def _read_data_test(self, path):
+        return self._read_MNIST_data(path)
+
+    @classmethod
+    def _read_MNIST_data(cls, path):
+        """读取MNIST数据集"""
+        images = []
+        for root, ds, fs in os.walk(os.path.join(path, 'images')):
+            for f in tqdm(fs, desc='Reading data from ' + path):
+                image = Image.open(os.path.join(root, f))
+                images.append(np.array(image))
+        labels = np.load(os.path.join(path, 'labels.npy'))  # one-hot
+        labels = np.argmax(labels, 1)  # ids
+        return list(zip(images, labels))
 
 if __name__ == '__main__':
     loader = MyDataLoader('./data/MNIST/train', './data/MNIST/dev', './data/MNIST/test')

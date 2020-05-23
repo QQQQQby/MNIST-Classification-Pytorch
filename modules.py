@@ -3,9 +3,10 @@
 Pytorch modules
 input: 28*28, output(one-hot): 10
 """
+from time import time
 
 import torch
-from torch import nn, optim
+from torch import nn
 
 
 class MyCNN(nn.Module):
@@ -28,7 +29,6 @@ class MyCNN(nn.Module):
             nn.MaxPool2d(2, 2)
         )
         """5 * 5 * 12"""
-        self.flatten = nn.Flatten()
         self.fc = nn.Sequential(
             nn.Dropout(0.8),
             nn.Linear(300, 128, bias=True),
@@ -38,13 +38,17 @@ class MyCNN(nn.Module):
             nn.ReLU(),
             nn.Linear(100, 10, bias=True)
         )
-        self.softmax = nn.Softmax()
-        self.loss = nn.CrossEntropyLoss()
-        # self.op = optim.SGD(self.parameters(), lr=0.001, momentum=0.8)
+        """10"""
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.conv2(x)
-        x = self.flatten(x)
+        x = x.flatten(1)
         x = self.fc(x)
         return x
+
+
+if __name__ == '__main__':
+    m = MyCNN()
+    torch.manual_seed(1)
+    print(m(torch.randn(5, 1, 28, 28)))
