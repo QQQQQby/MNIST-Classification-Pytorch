@@ -1,7 +1,7 @@
 # coding: utf-8
 
 import data_loader
-import models
+import modules
 
 import argparse
 import os
@@ -12,25 +12,23 @@ class Classifier:
         print(args)
         self.model = model
         self.args = args
-        self.data_train_loader = data_loader.DataLoader(os.path.join(args.dataset_path, 'train/'),
-                                                        args.train_batch_size)
-        self.data_dev_loader = data_loader.DataLoader(os.path.join(args.dataset_path, 'dev/'),
-                                                      args.dev_batch_size)
-        self.data_test_loader = data_loader.DataLoader(os.path.join(args.dataset_path, 'test/'),
-                                                       args.test_batch_size)
+        self.data_train_loader = data_loader.MyDataLoader(os.path.join(args.dataset_path, 'train/'),
+                                                          args.train_batch_size)
+        self.data_dev_loader = data_loader.MyDataLoader(os.path.join(args.dataset_path, 'dev/'),
+                                                        args.dev_batch_size)
+        self.data_test_loader = data_loader.MyDataLoader(os.path.join(args.dataset_path, 'test/'),
+                                                         args.test_batch_size)
 
     def run(self):
-        if not self.args.not_train:
-            self.train()
-        if not self.args.not_eval:
-            self.eval()
-        if not self.args.not_test:
-            self.test()
+        for epoch in range(1, self.args.epochs + 1):
+            if not self.args.not_train:
+                self.train()
+            if not self.args.not_eval:
+                self.eval()
+            if not self.args.not_test:
+                self.test()
 
     def train(self):
-        pass
-        # for epoch in range(self.args.epochs):
-
 
     def eval(self):
         pass
@@ -65,5 +63,4 @@ def parse_args():
 
 
 if __name__ == '__main__':
-
-    classifier = Classifier(models.MyCNN(), parse_args())
+    classifier = Classifier(modules.MyCNN(), parse_args())

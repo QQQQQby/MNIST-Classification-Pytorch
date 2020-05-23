@@ -1,6 +1,5 @@
 # coding: utf-8
 import random
-import copy
 import os
 import numpy as np
 from tqdm import tqdm
@@ -8,17 +7,44 @@ from PIL import Image
 
 
 class DataLoader:
-    def __init__(self, data_path, batch_size=8):
-        self.__data = self.read_data(data_path)
-        self.__batch_size = batch_size
-        self.__present_batch = 0
+    """读取数据的基类，数据以列表形式存储"""
 
-    def get_data_copy(self):
-        return copy.deepcopy(self.__data)
+    def __init__(self, train_path, dev_path, test_path):
+        self.__data_train = self.__read_data_train(train_path)
+        self.__data_dev = self.__read_data_dev(dev_path)
+        self.__data_test = self.__read_data_test(test_path)
 
-    # 打乱数据
-    def shuffle_data(self):
-        random.shuffle(self.__data)
+    def __read_data_train(self, path):
+        """读取训练集数据"""
+        raise NotImplementedError()
+
+    def __read_data_dev(self, path):
+        """读取开发集数据"""
+        raise NotImplementedError()
+
+    def __read_data_test(self, path):
+        """读取测试集数据"""
+        raise NotImplementedError()
+
+    def shuffle_data_train(self):
+        """打乱训练集数据"""
+        random.shuffle(self.__data_train)
+
+    def get_data_train(self):
+        """获取训练集数据"""
+        return self.__data_train
+
+    def get_data_dev(self):
+        """获取开发集数据"""
+        return self.__data_dev
+
+    def get_data_test(self):
+        """获取测试集数据"""
+        return self.__data_test
+
+
+class MyDataLoader(DataLoader):
+
 
     # 返回下一个batch的数据
     def get_next_batch(self):
@@ -44,10 +70,10 @@ class DataLoader:
             yield self.get_next_batch()
 
     @classmethod
-    def read_data(cls, path):
+    def _read_MNIST_data(cls, path):
         images = []
         for root, ds, fs in os.walk(os.path.join(path, 'images')):
-            for f in tqdm(fs, desc='Reading data from' + path):
+            for f in tqdm(fs, desc='Reading data from ' + path):
                 image = Image.open(os.path.join(root, f))
                 images.append(np.array(image))
         labels = np.load(os.path.join(path, 'labels.npy'))
