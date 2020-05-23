@@ -38,8 +38,9 @@ class MyCNN(nn.Module):
             nn.ReLU(),
             nn.Linear(100, 10, bias=True)
         )
+        self.softmax = nn.Softmax()
         self.loss = nn.CrossEntropyLoss()
-        self.op = optim.SGD(self.parameters(), lr=0.001, momentum=0.8)
+        # self.op = optim.SGD(self.parameters(), lr=0.001, momentum=0.8)
 
     def forward(self, x):
         x = self.conv1(x)
