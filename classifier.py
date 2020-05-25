@@ -31,10 +31,10 @@ class Classifier:
                                                 dtype=torch.float32).unsqueeze(1)
                     batch_labels = torch.tensor([d[1] for d in data[start:start + self.args.train_batch_size]],
                                                 dtype=torch.int64)
+                    outputs = self.model(batch_images)
                     """backward"""
                     optimizer = optim.SGD(self.model.parameters(), lr=0.01)
                     self.model.zero_grad()
-                    outputs = self.model(batch_images)
                     loss = nn.CrossEntropyLoss()(outputs, batch_labels)
                     loss.backward()
                     optimizer.step()
@@ -42,10 +42,28 @@ class Classifier:
             if not self.args.not_eval:
                 """Eval"""
                 print('-' * 20 + 'Evaluating epoch %d' % epoch + '-' * 20)
+                data = self.data_loader.get_data_dev()
+                for start in tqdm(range(0, len(data), self.args.dev_batch_size), desc='Evaluating batch: '):
+                    batch_images = torch.tensor([d[0] for d in data[start:start + self.args.dev_batch_size]],
+                                                dtype=torch.float32).unsqueeze(1)
+                    batch_labels = torch.tensor([d[1] for d in data[start:start + self.args.dev_batch_size]],
+                                                dtype=torch.int64)
+                    outputs = self.model(batch_images)
+                    """evaluating"""
+
 
             if not self.args.not_test:
                 """Test"""
                 print('-' * 20 + 'Testing epoch %d' % epoch + '-' * 20)
+                data = self.data_loader.get_data_dev()
+                for start in tqdm(range(0, len(data), self.args.dev_batch_size), desc='Evaluating batch: '):
+                    batch_images = torch.tensor([d[0] for d in data[start:start + self.args.dev_batch_size]],
+                                                dtype=torch.float32).unsqueeze(1)
+                    batch_labels = torch.tensor([d[1] for d in data[start:start + self.args.dev_batch_size]],
+                                                dtype=torch.int64)
+                    outputs = self.model(batch_images)
+                    """evaluating"""
+
 
 
 def parse_args():
@@ -77,5 +95,5 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    classifier = Classifier(modules.MyCNN(), parse_args())
+    classifier = Classifier(modules.CNN(), parse_args())
     classifier.run()

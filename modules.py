@@ -9,9 +9,9 @@ import torch
 from torch import nn
 
 
-class MyCNN(nn.Module):
+class CNN(nn.Module):
     def __init__(self):
-        super(MyCNN, self).__init__()
+        super(CNN, self).__init__()
         """28 * 28 * 1"""
         self.conv1 = nn.Sequential(
             nn.Conv2d(1, 6, 3, 1),
@@ -49,6 +49,6 @@ class MyCNN(nn.Module):
 
 
 if __name__ == '__main__':
-    m = MyCNN()
+    m = CNN()
     torch.manual_seed(1)
     print(m(torch.randn(5, 1, 28, 28)))
