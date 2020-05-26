@@ -26,6 +26,10 @@ class DataLoader:
         """获取测试集数据"""
         raise NotImplementedError()
 
+    def get_labels(self):
+        """获取所有标签"""
+        raise NotImplementedError()
+
 
 class MyDataLoader(DataLoader):
     """从解压缩后的文件中读取数据"""
@@ -38,6 +42,9 @@ class MyDataLoader(DataLoader):
 
     def get_data_test(self):
         return self._read_data(os.path.join(self.path, 'MNIST/test'))
+
+    def get_labels(self):
+        return list(range(10))
 
     @classmethod
     def _read_data(cls, path):
@@ -57,25 +64,28 @@ class MNISTDataLoader(DataLoader):
 
     def __init__(self, path):
         super(MNISTDataLoader, self).__init__(path)
-        self.mnist = input_data.read_data_sets(os.path.join(path, 'MNIST/'), one_hot=True)
+        self.mnist = input_data.read_data_sets(os.path.join(path, 'MNIST/'))
 
     def get_data_train(self):
         data = []
         for i in tqdm(range(len(self.mnist.train.images))):
             data.append([np.reshape(self.mnist.train.images[i], (28, 28)) * 255,
-                         np.argmax(self.mnist.train.labels[i])])
+                         self.mnist.train.labels[i]])
         return data
 
     def get_data_dev(self):
         data = []
         for i in tqdm(range(len(self.mnist.validation.images))):
             data.append([np.reshape(self.mnist.validation.images[i], (28, 28)) * 255,
-                         np.argmax(self.mnist.validation.labels[i])])
+                         self.mnist.validation.labels[i]])
         return data
 
     def get_data_test(self):
         data = []
         for i in tqdm(range(len(self.mnist.test.images))):
             data.append([np.reshape(self.mnist.test.images[i], (28, 28)) * 255,
-                         np.argmax(self.mnist.test.labels[i])])
+                         self.mnist.test.labels[i]])
         return data
+
+    def get_labels(self):
+        return list(range(10))
