@@ -120,7 +120,8 @@ def parse_args():
 
 
 if __name__ == '__main__':
+    args = parse_args()
     if torch.cuda.is_available():
         torch.set_default_tensor_type('torch.cuda.FloatTensor')
-    classifier = Classifier(modules.CNN2(), parse_args())
+    classifier = Classifier(modules.CNN2(), args)
     classifier.run()
