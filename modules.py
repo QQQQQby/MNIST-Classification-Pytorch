@@ -16,15 +16,11 @@ class CNN1(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv2d(1, 32, 5, padding=2, bias=True),
             nn.ReLU(),
-            nn.Conv2d(32, 32, 5, padding=2, bias=True),
-            nn.ReLU(),
             nn.MaxPool2d(2, 2)
         )
         """32 * 14 * 14"""
         self.conv2 = nn.Sequential(
             nn.Conv2d(32, 64, 5, padding=2, bias=True),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, 5, padding=2, bias=True),
             nn.ReLU(),
             nn.MaxPool2d(2, 2)
         )
@@ -32,15 +28,13 @@ class CNN1(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(64 * 7 * 7, 1024, bias=True),
             nn.ReLU(),
-            nn.Dropout(0.8),
-            nn.Linear(1024, 100, bias=True),
-            nn.ReLU(),
-            nn.Dropout(0.8),
-            nn.Linear(100, 10, bias=True)
+            nn.Dropout(0.7),
+            nn.Linear(1024, 10, bias=True)
         )
         """10"""
 
     def forward(self, x):
+        x = x.unsqueeze(1)
         x = self.conv1(x)
         x = self.conv2(x)
         x = x.flatten(1)
@@ -76,6 +70,7 @@ class CNN2(nn.Module):
         """10"""
 
     def forward(self, x):
+        x = x.unsqueeze(1)
         x = self.conv1(x)
         x = self.conv2(x)
         x = x.flatten(1)
