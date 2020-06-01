@@ -18,9 +18,12 @@ import modules
 class Classifier:
     def __init__(self, args):
         print(args)
-        self.model = modules.CNN1()
         self.args = args
-        data_loader = data_loaders.MNISTDataLoader(args.dataset_path)
+
+        self.model = modules.CNN1()
+
+        print('-' * 20 + 'Reading data' + '-' * 20, flush=True)
+        data_loader = data_loaders.TF2DataLoader(args.dataset_path)
         self.data_train = data_loader.get_data_train()
         self.data_dev = data_loader.get_data_dev()
         self.data_test = data_loader.get_data_test()

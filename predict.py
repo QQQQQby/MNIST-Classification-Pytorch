@@ -6,12 +6,12 @@ import cv2
 import torch
 import numpy as np
 
-model_path = './output/1000_0.01_dropout0.7/epoch_17.pd'
+model_path = './output/1000_0.01_dropout0.7/epoch_19.pd'
 video_path = 'data/VID_20200526_170846.mp4'
 
 
 def load_model(path):
-    return torch.load(model_path)
+    return torch.load(path)
 
 
 def c(image):
@@ -34,6 +34,7 @@ if __name__ == '__main__':
     model = load_model(model_path)
 
     capture = cv2.VideoCapture(video_path)
+    # capture = cv2.VideoCapture(0)
 
     while capture.isOpened():
         ret, frame = capture.read()
@@ -56,7 +57,7 @@ if __name__ == '__main__':
 
         """将原始图片显示在窗口中"""
         cv2.namedWindow("frame", 0)
-        cv2.resizeWindow("frame", 1024, 1024)
+        cv2.resizeWindow("frame", 800, 600)
         # cv2.imshow("frame", gray)
         cv2.imshow("frame", frame)
         """将灰度图片显示在另一个窗口中"""

@@ -3,7 +3,7 @@
 import os
 from tqdm import tqdm
 
-import tensorflow.examples.tutorials.mnist.input_data as input_data
+# import tensorflow.examples.tutorials.mnist.input_data as input_data # for tensorflow 1.x
 import numpy as np
 from PIL import Image
 
