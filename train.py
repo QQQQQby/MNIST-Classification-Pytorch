@@ -9,14 +9,16 @@ import argparse
 import torch
 from torch import nn, optim
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 import data_loaders
-from metrics import MetricsCalculator
 import modules
+from metrics import MetricsCalculator
 
 
 def train(args):
     """Train"""
+    os.environ['CUDA_VISIBLE_DEVICE'] = '1'
     if torch.cuda.is_available():
         torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
@@ -28,10 +30,11 @@ def train(args):
     data_train = data_loader.get_data_train()
     data_val = data_loader.get_data_val()
 
-    if not os.path.exists(args.output_dir):
+    if args.output_dir and not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
     # Prepare to train
+    train_acc_history, val_acc_history = [], []
     optimizer = optim.SGD(model.parameters(), lr=args.lr)
 
     # Start training
@@ -62,7 +65,9 @@ def train(args):
 
             pred_labels = outputs.softmax(1).argmax(1).tolist()
             calculator.update(actual_labels, pred_labels)
-        print('Accuracy:', calculator.calc_accuracy())
+        acc = calculator.calc_accuracy()
+        print('Accuracy:', acc)
+        train_acc_history.append(acc)
 
         end_time = time.time()
         print('Training lasts', end_time - start_time, 's')
@@ -77,7 +82,6 @@ def train(args):
         start_time = time.time()
 
         calculator = MetricsCalculator(10)
-        # m = metrics.Metrics(labels)
         for start in tqdm(range(0, len(data_val), args.val_batch_size),
                           desc='Validating epoch %d: ' % epoch):
             images = [data_val[idx][0] for idx in
@@ -91,10 +95,23 @@ def train(args):
             # Update metrics
             pred_labels = outputs.softmax(1).argmax(1).tolist()
             calculator.update(actual_labels, pred_labels)
-        print('Accuracy:', calculator.calc_accuracy())
+        acc = calculator.calc_accuracy()
+        print('Accuracy:', acc)
+        val_acc_history.append(acc)
 
         end_time = time.time()
         print('Validating lasts', end_time - start_time, 's')
+
+    # Plot
+    if args.output_dir:
+        plt.xlabel('Epoch')
+        plt.ylabel('Accuracy')
+        plt.title('Accuracy During Training')
+        plt.grid(True)
+        plt.plot(train_acc_history, 'r')
+        plt.plot(val_acc_history, 'b')
+        plt.legend(['train', 'val'])
+        plt.savefig(os.path.join(args.output_dir, 'train.jpg'))
 
 
 def parse_args():
