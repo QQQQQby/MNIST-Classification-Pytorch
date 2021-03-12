@@ -18,7 +18,7 @@ from metrics import MetricsCalculator
 
 def train(args):
     """Train"""
-    os.environ['CUDA_VISIBLE_DEVICE'] = '1'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     if torch.cuda.is_available():
         torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
@@ -35,6 +35,7 @@ def train(args):
 
     # Prepare to train
     train_acc_history, val_acc_history = [], []
+    loss_history = []
     optimizer = optim.SGD(model.parameters(), lr=args.lr)
 
     # Start training
@@ -60,6 +61,7 @@ def train(args):
             batch_labels = torch.tensor(actual_labels, dtype=torch.int64)
             model.zero_grad()
             loss = nn.CrossEntropyLoss()(outputs, batch_labels)
+            loss_history.append(float(loss))
             loss.backward()
             optimizer.step()
 
@@ -104,6 +106,14 @@ def train(args):
 
     # Plot
     if args.output_dir:
+        plt.xlabel('Batch')
+        plt.ylabel('Loss')
+        plt.title('Loss During Training')
+        plt.grid(True)
+        plt.plot(loss_history, 'r')
+        plt.savefig(os.path.join(args.output_dir, 'loss.jpg'))
+        plt.close()
+
         plt.xlabel('Epoch')
         plt.ylabel('Accuracy')
         plt.title('Accuracy During Training')
@@ -111,7 +121,8 @@ def train(args):
         plt.plot(train_acc_history, 'r')
         plt.plot(val_acc_history, 'b')
         plt.legend(['train', 'val'])
-        plt.savefig(os.path.join(args.output_dir, 'train.jpg'))
+        plt.savefig(os.path.join(args.output_dir, 'acc.jpg'))
+        plt.close()
 
 
 def parse_args():
@@ -121,15 +132,15 @@ def parse_args():
                         help='The directory where the dataset is located.')
     parser.add_argument('--output_dir', type=str, default='./output/1/',
                         help='Output directory.')
-    parser.add_argument('--train_batch_size', type=int, default=500,
+    parser.add_argument('--train_batch_size', type=int, default=1000,
                         help='Batch size of train set.')
-    parser.add_argument('--num_epochs', type=int, default=20,
+    parser.add_argument('--num_epochs', type=int, default=50,
                         help='Number of epochs.')
     parser.add_argument('--lr', type=float, default=0.01,
                         help='Learning rate.')
     parser.add_argument('--not_val', action='store_true', default=False,
                         help="Whether not to validate the model.")
-    parser.add_argument('--val_batch_size', type=int, default=500,
+    parser.add_argument('--val_batch_size', type=int, default=1000,
                         help='Batch size of validation set.')
     return parser.parse_args()
 
