@@ -1,154 +1,192 @@
-"""Train CNN model on MNIST"""
+"""
+Train model on MNIST
+"""
 
-import random
-import time
 import os
-import argparse
+import time
 
 import torch
-from torch import nn, optim
+from torch import nn
+from torchvision import datasets
 import numpy as np
+import click
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-import data_loaders
-import modules
-from metrics import MetricsCalculator
+from models import MyResNet18
+from utils import shuffle_arrays_in_unison
 
 
-def train(args):
-    """Train"""
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+@click.command()
+@click.option('-t', '--train_prop', type=float, default=0.8,
+              help='Proportion of train set to the total dataset.')
+@click.option('-e', '--epochs', type=int, default=100,
+              help='Number of training epochs.')
+@click.option('-p', '--patience', type=int, default=10,
+              help='If the model performs poorly on val set for '
+                   '\"patience\" consecutive epochs, training will stop.')
+@click.option('-b', '--batch_size', type=int, default=256,
+              help='Batch size.')
+@click.option('-l', '--lr0', type=float, default=0.01,
+              help='Initial learning rate.')
+@click.option('-m', '--momentum', type=float, default=0.9,
+              help='Momentum of SGD.')
+@click.option('-o', '--out_dir', type=str, default=None,
+              help='Training output directory.')
+@click.option('--batch_size_val', type=int, default=None,
+              help='Validating batch size. If not set, it will be equal to batch_size.')
+def train(train_prop, epochs, patience, batch_size, lr0, momentum, out_dir, batch_size_val):
+    """Train on MNIST"""
+    # Prepare output directory
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    else:
+        out_root = './output/'
+        out_dir = os.path.join(out_root, 'train')
+        if os.path.isdir(out_dir):
+            i = 1
+            while True:
+                out_dir = os.path.join(out_root, f'train_{i}')
+                if not os.path.isdir(out_dir):
+                    break
+                i += 1
+        os.makedirs(out_dir)
+    print(f'Results will be saved in \"{out_dir}\"')
+
+    # Download and read the MNIST dataset
+    print('Reading data...', flush=True)
+    mnist = datasets.MNIST('./datasets/', download=True, train=True)
+    images_train, labels_train = np.copy(mnist.data), np.copy(mnist.targets)
+    shuffle_arrays_in_unison(images_train, labels_train)
+
+    # Divide the dataset into train set and val set
+    num_data_train = int(images_train.shape[0] * train_prop)
+    num_data_val = images_train.shape[0] - num_data_train
+    images_val, labels_val = images_train[num_data_train:], labels_train[num_data_train:]
+    images_train, labels_train = images_train[:num_data_train], labels_train[:num_data_train]
+
+    # Set default device to CUDA if available
     if torch.cuda.is_available():
         torch.set_default_device('cuda')
-        torch.set_default_dtype(torch.float32)
 
-    model = modules.MyResNet50()
-    # model = modules.CNN1()
-
-    # Read data
-    print('Reading data...', flush=True)
-    data_loader = data_loaders.NPZDataLoader(args.dataset_dir)
-    data_train = data_loader.get_data_train()
-    data_val = data_loader.get_data_val()
-
-    if args.output_dir and not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
+    # Load model
+    model = MyResNet18()
 
     # Prepare to train
-    model.train()
-    train_acc_history, val_acc_history = [], []
-    loss_history = []
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
+    acc_history_train, loss_history, acc_history_val = [], [], []
+    max_acc_val, max_acc_val_epoch, curr_patience = 0, 0, patience
+    early_stopped = False
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr0, momentum=momentum)
+    if not batch_size_val:
+        batch_size_val = batch_size
 
     # Start training
-    print('Start training.', flush=True)
-    for epoch in range(args.num_epochs):
+    print('Start training.')
+    print(flush=True)
+    for epoch in range(epochs):
 
-        # Train
-        start_time = time.time()
+        # Training process
+        start_time = time.perf_counter_ns()
 
-        random.shuffle(data_train)
-        calculator = MetricsCalculator(10)
-        for start in tqdm(range(0, len(data_train), args.train_batch_size),
+        model.train()
+        shuffle_arrays_in_unison(images_train, labels_train)
+        num_correct = 0
+
+        for start in tqdm(range(0, images_train.shape[0], batch_size),
                           desc=f'Training epoch {epoch}: '):
-            images = np.array([data_train[idx][0] for idx in
-                               range(start, min(start + args.train_batch_size, len(data_train)))])
-            actual_labels = [data_train[idx][1] for idx in
-                             range(start, min(start + args.train_batch_size, len(data_train)))]
+            # Get batch data
+            batch_images = images_train[start: start + batch_size]
+            batch_labels = labels_train[start: start + batch_size]
 
-            # forward
-            outputs = model(torch.tensor(images, dtype=torch.float32))
-
-            # backward
-            batch_labels = torch.tensor(actual_labels, dtype=torch.int64)
+            # Train on current batch
+            outputs = model(torch.tensor(batch_images, dtype=torch.float32))
             model.zero_grad()
-            loss = nn.CrossEntropyLoss()(outputs, batch_labels)
+            loss = nn.CrossEntropyLoss()(outputs, torch.tensor(batch_labels))
             loss_history.append(float(loss))
             loss.backward()
             optimizer.step()
 
-            pred_labels = outputs.softmax(1).argmax(1).tolist()
-            calculator.update(actual_labels, pred_labels)
-        acc = calculator.calc_accuracy()
-        print(f'Accuracy: {acc}')
-        train_acc_history.append(acc)
+            # Update accuracy
+            pred_labels = outputs.argmax(1).cpu().numpy()
+            num_correct += np.sum(batch_labels == pred_labels)
 
-        end_time = time.time()
-        print(f'Training lasts {end_time - start_time} s')
+        acc_train = num_correct / num_data_train
+        acc_history_train.append(acc_train)
+        end_time = time.perf_counter_ns()
+        print(f'Accuracy: {acc_train}')
+        print(f'Time: {(end_time - start_time) / 1e9} s.', flush=True)
 
-        if args.output_dir:
-            torch.save(model, os.path.join(args.output_dir, 'epoch_' + str(epoch) + '.pt'))
+        torch.save(model, os.path.join(out_dir, 'last.pt'))
 
-        if args.not_val:
-            continue
+        # Validating process
+        start_time = time.perf_counter_ns()
 
-        # Validate
         model.eval()
-        start_time = time.time()
+        num_correct = 0
 
-        calculator = MetricsCalculator(10)
-        for start in tqdm(range(0, len(data_val), args.val_batch_size),
+        for start in tqdm(range(0, len(images_val), batch_size_val),
                           desc=f'Validating epoch {epoch}: '):
-            images = np.array([data_val[idx][0] for idx in
-                               range(start, min(start + args.val_batch_size, len(data_val)))])
-            actual_labels = [data_val[idx][1] for idx in
-                             range(start, min(start + args.val_batch_size, len(data_val)))]
+            # Get batch data
+            batch_images = images_val[start: start + batch_size]
+            batch_labels = labels_val[start: start + batch_size]
 
-            # forward
-            outputs = model(torch.tensor(images, dtype=torch.float32))
+            # Inference
+            outputs = model(torch.tensor(batch_images, dtype=torch.float32))
 
-            # Update metrics
-            pred_labels = outputs.softmax(1).argmax(1).tolist()
-            calculator.update(actual_labels, pred_labels)
-        acc = calculator.calc_accuracy()
-        print(f'Accuracy: {acc}')
-        val_acc_history.append(acc)
+            # Update accuracy
+            pred_labels = outputs.argmax(1).cpu().numpy()
+            num_correct += np.sum(batch_labels == pred_labels)
 
-        end_time = time.time()
-        print(f'Validating lasts {end_time - start_time} s')
-        print()
+        acc_val = num_correct / num_data_val
+        acc_history_val.append(acc_val)
+        end_time = time.perf_counter_ns()
+        print(f'Accuracy: {acc_val}')
+        print(f'Time: {(end_time - start_time) / 1e9} s.')
+        print(flush=True)
 
-    # Plot
-    if args.output_dir:
-        plt.xlabel('Batch')
-        plt.ylabel('Loss')
-        plt.title('Loss During Training')
-        plt.grid(True)
-        plt.plot(loss_history, 'r')
-        plt.savefig(os.path.join(args.output_dir, 'loss.jpg'))
-        plt.close()
+        if acc_val > max_acc_val:
+            max_acc_val = acc_val
+            max_acc_val_epoch = epoch
 
-        plt.xlabel('Epoch')
-        plt.ylabel('Accuracy')
-        plt.title('Accuracy During Training')
-        plt.grid(True)
-        plt.plot(train_acc_history, 'r')
-        plt.plot(val_acc_history, 'b')
-        plt.legend(['train', 'val'])
-        plt.savefig(os.path.join(args.output_dir, 'acc.jpg'))
-        plt.close()
+            torch.save(model, os.path.join(out_dir, 'best.pt'))
+            curr_patience = patience
+        else:
+            curr_patience -= 1
+            if curr_patience < 0:
+                early_stopped = True
+                break
 
+    if early_stopped:
+        print('The model\'s performance reaches its best after being trained '
+              f'for {max_acc_val_epoch} epochs, so training is stopped early.')
+    else:
+        print('Training is completed.', flush=True)
 
-def parse_args():
-    """Parse arguments"""
-    parser = argparse.ArgumentParser(description="Train MNIST Classifier.")
-    parser.add_argument('--dataset_dir', type=str, default='./data/MNIST',
-                        help='The directory where the dataset is located.')
-    parser.add_argument('--output_dir', type=str, default='./output/resnet2/',
-                        help='Output directory.')
-    parser.add_argument('--train_batch_size', type=int, default=128,
-                        help='Batch size of train set.')
-    parser.add_argument('--num_epochs', type=int, default=30,
-                        help='Number of epochs.')
-    parser.add_argument('--lr', type=float, default=0.005,
-                        help='Learning rate.')
-    parser.add_argument('--not_val', action='store_true', default=False,
-                        help="Whether not to validate the model.")
-    parser.add_argument('--val_batch_size', type=int, default=1024,
-                        help='Batch size of validation set.')
-    return parser.parse_args()
+    # Plot result and save
+    plt.figure(figsize=(16, 8))
+
+    plt.subplot(121)
+    plt.xlabel('Batch')
+    plt.ylabel('Loss')
+    plt.title('Loss')
+    plt.grid(True)
+    plt.plot(loss_history, 'r')
+
+    plt.subplot(122)
+    plt.gca().xaxis.get_major_locator().set_params(integer=True)
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.title('Accuracy')
+    plt.ylim(0, 1)
+    plt.yticks(np.append(np.arange(0, 1, 0.05), 1))
+    plt.grid(True)
+    plt.plot(acc_history_train, 'r')
+    plt.plot(acc_history_val, 'b')
+    plt.legend(['train', 'val'])
+
+    plt.savefig(os.path.join(out_dir, 'result.jpg'))
+    plt.close()
 
 
 if __name__ == '__main__':
-    train(parse_args())
+    train()
