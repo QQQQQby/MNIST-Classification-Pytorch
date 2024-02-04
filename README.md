@@ -1,30 +1,40 @@
-# Pytorch Implement of Image Classification for MNIST
+# PyTorch Implement of Image Classification for MNIST
 
 ## How to run
 
 ### Train
 
 ```
-usage: train.py [-h] [--dataset_dir DATASET_DIR] [--output_dir OUTPUT_DIR]
-                [--train_batch_size TRAIN_BATCH_SIZE]
-                [--num_epochs NUM_EPOCHS] [--lr LR] [--not_val]
-                [--val_batch_size VAL_BATCH_SIZE]
+Usage: train.py [OPTIONS]
 
-Train MNIST Classifier.
+  Train on MNIST
 
-optional arguments:
-  -h, --help            show this help message and exit
-  --dataset_dir DATASET_DIR
-                        The directory where the dataset is located.
-  --output_dir OUTPUT_DIR
-                        Output directory.
-  --train_batch_size TRAIN_BATCH_SIZE
-                        Batch size of train set.
-  --num_epochs NUM_EPOCHS
-                        Number of epochs.
-  --lr LR               Learning rate.
-  --not_val             Whether not to validate the model.
-  --val_batch_size VAL_BATCH_SIZE
-                        Batch size of validation set.
-
+Options:
+  -t, --train_prop FLOAT    Proportion of train set to the total dataset.
+  -e, --epochs INTEGER      Number of training epochs.
+  -p, --patience INTEGER    If the model performs poorly for a specified
+                            number of consecutive epochs, training will be
+                            stopped.
+  -b, --batch_size INTEGER  Batch size.
+  -l, --lr0 FLOAT           Initial learning rate.
+  -m, --momentum FLOAT      Momentum of SGD.
+  -o, --out_dir TEXT        Training output directory.
+  --batch_size_val INTEGER  Validating batch size. If not set, it will be
+                            equal to batch_size.
+  --help                    Show this message and exit.
 ```
+
+### Predict
+
+``````
+Usage: predict.py [OPTIONS]
+
+Options:
+  -s, --source TEXT      Source of prediction, which can be a path to an
+                         image, a video or a directory.  [required]     
+  -m, --model-path TEXT  Path to the trained model.  [required]
+  -o, --out_dir TEXT     Predicting output directory.
+  --help                 Show this message and exit.
+
+``````
+
