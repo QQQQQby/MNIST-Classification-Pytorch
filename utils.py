@@ -49,7 +49,6 @@ def image_iterator(source: Union[str, int]):
     elif os.path.isfile(source):
         ext = os.path.splitext(source)[1].lower()
         abs_path = os.path.abspath(source)
-
         if ext in IMAGE_FORMATS:
             # Image
             yield abs_path, imread(source)
@@ -78,7 +77,6 @@ def image_iterator(source: Union[str, int]):
                 continue
 
             ext = os.path.splitext(abs_path)[1].lower()
-
             if ext in IMAGE_FORMATS:
                 # Image
                 yield abs_path, imread(abs_path)
@@ -94,6 +92,74 @@ def image_iterator(source: Union[str, int]):
                         break
                     yield abs_path, frame, i, fps
                     i += 1
+
+    else:
+        raise FileNotFoundError
+
+
+def get_image_source_type(source: Union[str, int]):
+    # Camera
+    if isinstance(source, int):
+        return 'camera'
+
+    # File
+    if os.path.isfile(source):
+        ext = os.path.splitext(source)[1].lower()
+        if ext in IMAGE_FORMATS:
+            # Image
+            return 'image'
+
+        if ext in VIDEO_FORMATS:
+            # Video
+            return 'video'
+
+        raise NotImplementedError('Unsupported file format!')
+
+    # Directory
+    if os.path.isdir(source):
+        return 'directory'
+
+    raise FileNotFoundError
+
+
+def get_image_quantity(source: Union[str, int]):
+    # Camera
+    if isinstance(source, int):
+        return None
+
+    # File
+    if os.path.isfile(source):
+        ext = os.path.splitext(source)[1].lower()
+        if ext in IMAGE_FORMATS:
+            # Image
+            return 1
+
+        if ext in VIDEO_FORMATS:
+            # Video
+            capture = cv2.VideoCapture(source)
+            return int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        raise NotImplementedError('Unsupported file format!')
+
+    # Directory
+    if os.path.isdir(source):
+        total = 0
+        for filename in os.listdir(source):
+            abs_path = os.path.abspath(os.path.join(source, filename))
+
+            if not os.path.isfile(abs_path):
+                continue
+
+            ext = os.path.splitext(abs_path)[1].lower()
+            if ext in IMAGE_FORMATS:
+                # Image
+                total += 1
+
+            elif ext in VIDEO_FORMATS:
+                # Video
+                capture = cv2.VideoCapture(abs_path)
+                total += int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        return total
 
     else:
         raise FileNotFoundError
