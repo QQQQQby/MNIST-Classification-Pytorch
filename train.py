@@ -23,8 +23,8 @@ from utils import shuffle_arrays_in_unison
 @click.option('-e', '--epochs', type=int, default=100,
               help='Number of training epochs.')
 @click.option('-p', '--patience', type=int, default=10,
-              help='If the model performs poorly on val set for '
-                   '\"patience\" consecutive epochs, training will stop.')
+              help='If the model performs poorly for a specified number '
+                   'of consecutive epochs, training will be stopped.')
 @click.option('-b', '--batch_size', type=int, default=256,
               help='Batch size.')
 @click.option('-l', '--lr0', type=float, default=0.01,
