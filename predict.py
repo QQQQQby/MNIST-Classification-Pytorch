@@ -44,7 +44,11 @@ def inference(model, batch):
               help='Path to the trained model.')
 @click.option('-o', '--out_dir', type=str, default=None,
               help='Predicting output directory.')
-def predict(source, model_path, out_dir):
+@click.option('--save/--no-save', default=True,
+              help='Whether to save predicted images or videos.')
+@click.option('--save-labels/--no-save-labels', default=False,
+              help='Whether to save the label file.')
+def predict(source, model_path, out_dir, save, save_labels):
     # Prepare output directory
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
@@ -74,6 +78,7 @@ def predict(source, model_path, out_dir):
         source = int(source)
     last_video_path = ''
     video_writer = None
+    label_file = open(os.path.join(out_dir, 'labels.txt'), 'w', encoding='utf-8') if save_labels else None
 
     with tqdm(total=get_image_quantity(source),
               desc=f'Predicting {get_image_source_type(source)} \"{source}\"') as _tqdm:
@@ -83,7 +88,8 @@ def predict(source, model_path, out_dir):
             if len(img_info) == 2:
                 img_path, img = img_info
                 _tqdm.set_postfix_str(f'image: \"{img_path}\".')
-                if video_writer is not None:
+
+                if save and video_writer is not None:
                     video_writer.release()
                     video_writer = None
 
@@ -91,17 +97,23 @@ def predict(source, model_path, out_dir):
                 label = int(inference(model, to_batch([preprocess(img)])))
 
                 # Draw and save
-                text, font_face, font_scale, thickness = str(label), cv2.FONT_HERSHEY_SIMPLEX, 1.5, 2
-                (text_width, text_height), _ = cv2.getTextSize(text, font_face, font_scale, thickness)
-                cv2.putText(img, text, (0, text_height), font_face, font_scale, (255, 255, 0), thickness)
-                img_out_path = os.path.join(out_dir, os.path.split(img_path)[1])
-                imwrite(img_out_path, img)
+                if save:
+                    text, font_face, font_scale, thickness = str(label), cv2.FONT_HERSHEY_SIMPLEX, 1.5, 2
+                    (text_width, text_height), _ = cv2.getTextSize(text, font_face, font_scale, thickness)
+                    cv2.putText(img, text, (0, text_height), font_face, font_scale, (255, 255, 0), thickness)
+                    img_out_path = os.path.join(out_dir, os.path.split(img_path)[1])
+                    imwrite(img_out_path, img)
+
+                # Save label
+                if save_labels:
+                    label_file.write(f'\"{img_path}\" {label}\n')
 
             # Video
             else:
                 video_path, frame, i, fps = img_info
                 _tqdm.set_postfix_str(f'video: \"{video_path}\", frame index: {i}.')
-                if video_path != last_video_path:
+
+                if save and video_path != last_video_path:
                     if video_writer is not None:
                         video_writer.release()
                     video_out_path = os.path.join(out_dir, os.path.splitext(os.path.split(video_path)[1])[0] + '.avi')
@@ -113,17 +125,25 @@ def predict(source, model_path, out_dir):
                 label = int(inference(model, to_batch([preprocess(frame)])))
 
                 # Draw and write
-                text, font_face, font_scale, thickness = str(label), cv2.FONT_HERSHEY_SIMPLEX, 1.5, 2
-                (text_width, text_height), _ = cv2.getTextSize(text, font_face, font_scale, thickness)
-                cv2.putText(frame, text, (0, text_height), font_face, font_scale, (255, 255, 0), thickness)
-                video_writer.write(frame)
+                if save:
+                    text, font_face, font_scale, thickness = str(label), cv2.FONT_HERSHEY_SIMPLEX, 1.5, 2
+                    (text_width, text_height), _ = cv2.getTextSize(text, font_face, font_scale, thickness)
+                    cv2.putText(frame, text, (0, text_height), font_face, font_scale, (255, 255, 0), thickness)
+                    video_writer.write(frame)
+
+                # Save label
+                if save_labels:
+                    label_file.write(f'\"{video_path}\" {i} {label}\n')
 
             _tqdm.update()
 
         _tqdm.set_postfix_str('done!')
 
-    if video_writer is not None:
+    if save and video_writer is not None:
         video_writer.release()
+
+    if save_labels:
+        label_file.close()
 
 
 if __name__ == '__main__':

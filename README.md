@@ -30,11 +30,14 @@ Options:
 Usage: predict.py [OPTIONS]
 
 Options:
-  -s, --source TEXT      Source of prediction, which can be a path to an
-                         image, a video or a directory.  [required]     
-  -m, --model-path TEXT  Path to the trained model.  [required]
-  -o, --out_dir TEXT     Predicting output directory.
-  --help                 Show this message and exit.
-
+  -s, --source TEXT               Source of prediction, which can be a path to
+                                  an image, a video or a directory.
+                                  [required]
+  -m, --model-path TEXT           Path to the trained model.  [required]
+  -o, --out_dir TEXT              Predicting output directory.
+  --save / --no-save              Whether to save predicted images or videos.
+  --save-labels / --no-save-labels
+                                  Whether to save the label file.
+  --help                          Show this message and exit.
 ``````
 
