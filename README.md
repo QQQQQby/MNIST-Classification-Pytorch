@@ -1,4 +1,4 @@
-# PyTorch Implement of Image Classification for MNIST
+# PyTorch Implementation of MNIST Image Classification
 
 ## How to run
 
