@@ -66,17 +66,17 @@ def train(train_prop, epochs, patience, batch_size, lr0, momentum, out_dir, batc
     images_train, labels_train = images_train[:num_data_train], labels_train[:num_data_train]
 
     # Set default device to CUDA if available
-    if torch.cuda.is_available():
-        torch.set_default_device('cuda')
+    torch.set_default_device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Load model
+    # Initialize model
     model = MyResNet18()
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr0, momentum=momentum)
 
     # Prepare to train
     acc_history_train, loss_history, acc_history_val = [], [], []
     max_acc_val, max_acc_val_epoch, curr_patience = 0, 0, patience
     early_stopped = False
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr0, momentum=momentum)
     if not batch_size_val:
         batch_size_val = batch_size
 
@@ -98,13 +98,16 @@ def train(train_prop, epochs, patience, batch_size, lr0, momentum, out_dir, batc
             batch_images = images_train[start: start + batch_size]
             batch_labels = labels_train[start: start + batch_size]
 
-            # Train on current batch
+            # Zero the parameter gradients
+            optimizer.zero_grad()
+
+            # Forward + backward + optimize
             outputs = model(torch.tensor(batch_images, dtype=torch.float32))
-            model.zero_grad()
-            loss = nn.CrossEntropyLoss()(outputs, torch.tensor(batch_labels))
-            loss_history.append(float(loss))
+            loss = criterion(outputs, torch.tensor(batch_labels))
             loss.backward()
             optimizer.step()
+
+            loss_history.append(float(loss))
 
             # Update accuracy
             pred_labels = outputs.argmax(1).cpu().numpy()
@@ -124,18 +127,19 @@ def train(train_prop, epochs, patience, batch_size, lr0, momentum, out_dir, batc
         model.eval()
         num_correct = 0
 
-        for start in tqdm(range(0, len(images_val), batch_size_val),
-                          desc=f'Validating epoch {epoch}: '):
-            # Get batch data
-            batch_images = images_val[start: start + batch_size]
-            batch_labels = labels_val[start: start + batch_size]
+        with torch.no_grad():
+            for start in tqdm(range(0, len(images_val), batch_size_val),
+                              desc=f'Validating epoch {epoch}: '):
+                # Get batch data
+                batch_images = images_val[start: start + batch_size_val]
+                batch_labels = labels_val[start: start + batch_size_val]
 
-            # Inference
-            outputs = model(torch.tensor(batch_images, dtype=torch.float32))
+                # Inference
+                outputs = model(torch.tensor(batch_images, dtype=torch.float32))
 
-            # Update accuracy
-            pred_labels = outputs.argmax(1).cpu().numpy()
-            num_correct += np.sum(batch_labels == pred_labels)
+                # Update accuracy
+                pred_labels = outputs.argmax(1).cpu().numpy()
+                num_correct += np.sum(batch_labels == pred_labels)
 
         acc_val = num_correct / num_data_val
         acc_history_val.append(acc_val)
