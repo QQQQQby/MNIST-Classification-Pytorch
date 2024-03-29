@@ -9,6 +9,13 @@ import numpy as np
 import cv2
 
 
+def draw_label(img: np.ndarray, label: int,
+               font_face=cv2.FONT_HERSHEY_SIMPLEX, font_scale=1.5, color=(255, 255, 0), thickness=2):
+    label = str(label)
+    (text_width, text_height), _ = cv2.getTextSize(label, font_face, font_scale, thickness)
+    cv2.putText(img, label, (0, text_height), font_face, font_scale, color, thickness)
+
+
 def shuffle_arrays_in_unison(*arrays):
     """Shuffle multiple arrays in unison"""
     if not arrays:
@@ -32,18 +39,23 @@ def imwrite(path, img):
     return cv2.imencode(os.path.splitext(path)[1], img)[1].tofile(path)
 
 
-def image_iterator(source: Union[str, int]):
+def video_frame_info_generator(source: Union[str, int]):
+    capture = cv2.VideoCapture(source)
+    fps = capture.get(cv2.CAP_PROP_FPS)
+    i = 0
+    while capture.isOpened():
+        _, frame = capture.read()
+        if frame is None:
+            break
+        yield source, frame, i, fps
+        i += 1
+
+
+def image_generator(source: Union[str, int]):
     # Camera
     if isinstance(source, int):
-        capture = cv2.VideoCapture(int(source))
-        fps = capture.get(cv2.CAP_PROP_FPS)
-        i = 0
-        while capture.isOpened():
-            _, frame = capture.read()
-            if frame is None:
-                break
-            yield source, frame, i, fps
-            i += 1
+        for res in video_frame_info_generator(source):
+            yield res
 
     # File
     elif os.path.isfile(source):
@@ -51,19 +63,12 @@ def image_iterator(source: Union[str, int]):
         abs_path = os.path.abspath(source)
         if ext in IMAGE_FORMATS:
             # Image
-            yield abs_path, imread(source)
+            yield abs_path, imread(abs_path)
 
         elif ext in VIDEO_FORMATS:
             # Video
-            capture = cv2.VideoCapture(source)
-            fps = capture.get(cv2.CAP_PROP_FPS)
-            i = 0
-            while capture.isOpened():
-                _, frame = capture.read()
-                if frame is None:
-                    break
-                yield abs_path, frame, i, fps
-                i += 1
+            for res in video_frame_info_generator(abs_path):
+                yield res
 
         else:
             raise NotImplementedError('Unsupported file format!')
@@ -83,15 +88,8 @@ def image_iterator(source: Union[str, int]):
 
             elif ext in VIDEO_FORMATS:
                 # Video
-                capture = cv2.VideoCapture(abs_path)
-                fps = capture.get(cv2.CAP_PROP_FPS)
-                i = 0
-                while capture.isOpened():
-                    _, frame = capture.read()
-                    if frame is None:
-                        break
-                    yield abs_path, frame, i, fps
-                    i += 1
+                for res in video_frame_info_generator(abs_path):
+                    yield res
 
     else:
         raise FileNotFoundError

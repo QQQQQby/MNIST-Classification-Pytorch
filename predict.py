@@ -9,7 +9,7 @@ import cv2
 import torch
 import numpy as np
 
-from utils import image_iterator, imwrite, get_image_quantity, get_image_source_type
+from utils import image_generator, imwrite, get_image_quantity, get_image_source_type, draw_label
 
 
 def preprocess(img, invert=True, norm=True, binarize=True):
@@ -83,7 +83,7 @@ def predict(source, model_path, out_dir, save, save_labels):
     with tqdm(total=get_image_quantity(source),
               desc=f'Predicting {get_image_source_type(source)} \"{source}\"') as _tqdm:
 
-        for img_info in image_iterator(source):
+        for img_info in image_generator(source):
             # Image
             if len(img_info) == 2:
                 img_path, img = img_info
@@ -94,13 +94,12 @@ def predict(source, model_path, out_dir, save, save_labels):
                     video_writer = None
 
                 # Predict
-                label = int(inference(model, to_batch([preprocess(img)])))
+                label = int(inference(model, to_batch([preprocess(img)]))[0])
 
                 # Draw and save
                 if save:
-                    text, font_face, font_scale, thickness = str(label), cv2.FONT_HERSHEY_SIMPLEX, 1.5, 2
-                    (text_width, text_height), _ = cv2.getTextSize(text, font_face, font_scale, thickness)
-                    cv2.putText(img, text, (0, text_height), font_face, font_scale, (255, 255, 0), thickness)
+                    draw_label(img, label)
+
                     img_out_path = os.path.join(out_dir, os.path.split(img_path)[1])
                     imwrite(img_out_path, img)
 
@@ -116,19 +115,23 @@ def predict(source, model_path, out_dir, save, save_labels):
                 if save and video_path != last_video_path:
                     if video_writer is not None:
                         video_writer.release()
-                    video_out_path = os.path.join(out_dir, os.path.splitext(os.path.split(video_path)[1])[0] + '.avi')
-                    video_writer = cv2.VideoWriter(video_out_path, cv2.VideoWriter.fourcc(*'XVID'),
-                                                   fps, (frame.shape[1], frame.shape[0]), True)
+                    video_out_path = str(os.path.join(
+                        out_dir,
+                        os.path.splitext(os.path.split(video_path)[1])[0] + '.avi'
+                    ))
+                    video_writer = cv2.VideoWriter(
+                        video_out_path, cv2.VideoWriter.fourcc('X', 'V', 'I', 'D'),
+                        fps, (frame.shape[1], frame.shape[0]), True
+                    )
                     last_video_path = video_path
 
                 # Predict
-                label = int(inference(model, to_batch([preprocess(frame)])))
+                label = int(inference(model, to_batch([preprocess(frame)]))[0])
 
                 # Draw and write
                 if save:
-                    text, font_face, font_scale, thickness = str(label), cv2.FONT_HERSHEY_SIMPLEX, 1.5, 2
-                    (text_width, text_height), _ = cv2.getTextSize(text, font_face, font_scale, thickness)
-                    cv2.putText(frame, text, (0, text_height), font_face, font_scale, (255, 255, 0), thickness)
+                    draw_label(frame, label)
+
                     video_writer.write(frame)
 
                 # Save label
